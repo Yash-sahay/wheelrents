@@ -1,7 +1,7 @@
 const express = require('express')
 const app = express()
 const port = "5000"
-const hostname = '192.168.116.165';
+// const hostname = '192.168.116.165';
 const cors = require('cors'); 
 const connectToMongo = require('./db');
 const path = require('path')
@@ -18,6 +18,6 @@ app.use('/api/auth', require('./routes/auth'))
 app.use('/api/service', require('./routes/service'))
 app.use('/api/vehicle', require('./routes/vehicle'))
 
-app.listen(port, hostname, () => {
-    console.log(`project-x backend listening at http://${hostname}:${port}`)
+app.listen(port,() => {
+    console.log(`project-x backend listening at http://$:${port}`)
   })
