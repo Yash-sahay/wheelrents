@@ -8,6 +8,7 @@ let path = require('path');
 const multer = require('multer');
 const VehicleFilesModel = require('../models/VehicleFilesModel');
 const BookingsModel = require('../models/BookingsModel');
+const WishListModel = require('../models/WishListModel');
 
 // Multer storage configuration
 const storage = multer.diskStorage({
@@ -93,7 +94,8 @@ router.post('/get', async (req, res) => {
             const element = vehicleList[index];
             const files = await VehicleFilesModel.find({ vehicleId: element._doc._id });
             const vehicleBookings = await BookingsModel.find({ vehicleId: element._doc._id });
-            vehicleListWithImg.push({ ...element._doc, files: files, bookings: vehicleBookings });
+            const vehicleWish = await WishListModel.find({ vehicleId: element._doc._id });
+            vehicleListWithImg.push({ ...element._doc, files: files, bookings: vehicleBookings, isWishList: vehicleWish.length > 0 ? true : false });
         }
 
         // Sort vehicles based on the number of bookings (from most booked to least booked)
@@ -176,6 +178,73 @@ router.delete('/delete', fetchuser, async (req, res) => {
         return res.send({ success: false, ...error });
     }
 });
+
+
+
+
+// API endpoint to add or remove an item from the wishlist
+router.post('/wishlist', fetchuser, async (req, res) => {
+    try {
+        const { vehicleId } = req.body;
+        const userId = req.user.id;
+
+        // Check if the item is already in the wishlist
+        const existingItem = await WishListModel.findOne({ userId, vehicleId });
+
+        if (existingItem) {
+            // If the item exists, delete it
+            await WishListModel.deleteOne({ userId, vehicleId });
+            return res.status(200).json({ message: 'Item removed from the wishlist' });
+        }
+
+        // Create a new wishlist item
+        const newItem = new WishListModel({
+            userId,
+            vehicleId,
+        });
+
+        // Save the new item to the database
+        await newItem.save();
+
+        res.status(201).json(newItem);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+// API endpoint to get all wishlist items for a specific user
+router.get('/wishlist', fetchuser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Find all wishlist items for the specified user
+        const wishlistItems = await WishListModel.find({ userId });
+
+        res.status(200).json(wishlistItems);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// API endpoint to delete wishlist items for a specific user
+router.delete('/wishlistDelete/:vehicleId', fetchuser, async (req, res) => {
+    try {
+        const { vehicleId } = req.params;
+        const userId = req.user.id;
+        console.log("vec---->", vehicleId)
+        await WishListModel.deleteOne({ userId, vehicleId });
+        return res.status(200).json({ message: 'Item removed from the wishlist' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 // Exporting the router
 module.exports = router;
