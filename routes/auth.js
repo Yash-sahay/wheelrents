@@ -25,7 +25,7 @@ var TypeSchema = {
 router.post('/createuser', [
   body('name', 'Enter a valid name').isLength({ min: 3 }),
   body('email', 'Enter a valid email').isEmail(),
-  body('userType', 'Enter a valid user type').isLength({ min: 1}),
+  body('userType', 'Enter a valid user type').isLength({ min: 1 }),
   checkSchema(TypeSchema),
   body('password', 'Password must be atleast 5 characters').isLength({ min: 5 }),
 ], async (req, res) => {
@@ -97,7 +97,16 @@ router.post('/login', [
       return res.status(400).json({ success, error: "Please try to login with correct credentials" });
     }
 
-    const authtoken = jwt.sign({user: {id: user.id}}, JWT_SECRET);
+    // otp save start
+    otp = Math.floor(Math.random() * 9000) + 1000;
+    let payload = { otp: otp };
+    if (payload) {
+      await UserModel.findByIdAndUpdate({ _id: user.id }, payload);
+      return res.send(payload)
+    }
+    // otp save end
+
+    const authtoken = jwt.sign({ user: { id: user.id } }, JWT_SECRET);
     success = true;
 
     const data = {
@@ -124,7 +133,7 @@ router.post('/login', [
 
 
 // ROUTE 3: Get loggedin User Details using: POST "/api/auth/getuser". Login required
-router.post('/getuser', fetchuser,  async (req, res) => {
+router.post('/getuser', fetchuser, async (req, res) => {
 
   try {
     const userId = req.user.id;
@@ -135,4 +144,42 @@ router.post('/getuser', fetchuser,  async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 })
+
+// Otp flow start
+
+router.post('/verifyOtp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    let user = await UserModel.findOne({ email });
+    if (user) {
+      if (user?.otp == otp) {
+        const authtoken = jwt.sign({ user: { id: user.id } }, JWT_SECRET);
+        success = true;
+
+        const data = {
+          user: {
+            id: user.id,
+            name: user.name,
+            userType: user.userType,
+            email: user.email,
+            date: user.date,
+          },
+          success,
+          access: authtoken,
+          refresh: null
+        }
+        await UserModel.findByIdAndUpdate({ _id: user.id }, { otp: '' });
+        return res.json(data)
+      }
+      else {
+        res.status(500).send("Enter correct otp");
+      }
+    }
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send("Internal Server Error");
+  }
+})
+// Otp flow end
+
 module.exports = router

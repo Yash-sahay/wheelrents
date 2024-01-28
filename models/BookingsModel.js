@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const BookingSchema = new Schema({
-    vehicleId:{
+    vehicleId: {
         type: String,
         required: true
     },
-    userId:{
+    userId: {
         type: String,
         required: true
     },
@@ -22,10 +22,23 @@ const BookingSchema = new Schema({
         type: Date,
         required: true
     },
-    date:{
+    date: {
         type: Date,
         default: Date.now
     },
-  });
-  const BookingsModel = mongoose.model('bookings', BookingSchema);
-  module.exports = BookingsModel
+    status: {
+        type: String,
+        required: true
+    },
+    hostUserId: {
+        type: String,
+        required: true
+    },
+    vehicleSize: {
+        type: String,
+        required: true,
+        enum: ['SUV', 'Mini', 'Saden']
+    },
+});
+const BookingsModel = mongoose.model('bookings', BookingSchema);
+module.exports = BookingsModel

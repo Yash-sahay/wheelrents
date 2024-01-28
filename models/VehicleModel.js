@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const VehicleSchema = new Schema({
-    name:{
+    name: {
         type: String,
         required: true
     },
-    vehicleNo:{
+    vehicleNo: {
         type: String,
         unique: true,
         required: true
@@ -48,10 +48,29 @@ const VehicleSchema = new Schema({
         type: String,
         required: true,
     },
-    date:{
+    date: {
         type: Date,
         default: Date.now
     },
-  });
-  const VehicleModel = mongoose.model('vehicles', VehicleSchema);
-  module.exports = VehicleModel;
+
+    vehicleDocument: {
+        type: String,
+        required: true,
+        enum: ['RC', 'Pollution', 'Insurance']
+    },
+    bookingFormTime: {
+        type: Date,
+        default: Date.now
+    },
+    bookingToTime: {
+        type: Date,
+        default: Date.now
+    },
+    vehicleSize: {
+        type: String,
+        required: true,
+        enum: ['SUV', 'Mini', 'Saden']
+    },
+});
+const VehicleModel = mongoose.model('vehicles', VehicleSchema);
+module.exports = VehicleModel;
