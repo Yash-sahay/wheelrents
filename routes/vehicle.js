@@ -161,18 +161,19 @@ router.put('/update', fetchuser, async (req, res) => {
 });
 
 // API endpoint to delete a vehicle by ID
-router.delete('/delete', fetchuser, async (req, res) => {
+router.delete('/delete/:vehicleId', fetchuser, async (req, res) => {
     try {
         // Extracting vehicle ID from the request body
-        const vehicleId = req.body.vehicleId;
+        const { vehicleId } = req.params;
         // Validating the presence of the vehicle ID
         if (!vehicleId) {
             return res.status(404).send({ success: false, error: "please provide vehicle id" });
         }
         // Finding and deleting the vehicle by ID and user ID
-        const deletedVehicle = await VehicleModel.findOneAndDelete({ _id: vehicleId, userId: req.user.id });
+        const deletedVehicle = await VehicleModel.findByIdAndDelete({ _id: vehicleId, userId: req.user.id });
         // Returning success response with deleted vehicle information
-        return res.send({ success: true, ...deletedVehicle._doc });
+        console.log(deletedVehicle)
+        return res.send({ success: true, ...deletedVehicle });
     } catch (error) {
         // Returning error response
         return res.send({ success: false, ...error });

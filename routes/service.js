@@ -5,6 +5,7 @@ const fetchuser = require('../middleware/fetchuser');
 const VehicletypesModel = require('../models/VehicletypesModel');
 const SubVehicleTypeModel = require('../models/SubVehicleTypeModel');
 const multer = require('multer');
+const VehicleModel = require('../models/VehicleModel');
 
 
 const storage = multer.diskStorage({
@@ -12,7 +13,7 @@ const storage = multer.diskStorage({
         cb(null, './public/category')
     },
     filename: function (req, file, cb) {
-        cb(null,  Date.now() + "-wheelrents-" + Math.random() + file.originalname);
+        cb(null, Date.now() + "-wheelrents-" + Math.random() + file.originalname);
     }
 })
 const upload = multer({ storage: storage })
@@ -27,57 +28,75 @@ router.post('/add_vehicle_category', upload.single('image'), async (req, res) =>
             name: req.body.name,
             image: req.file.filename
         })
-        return res.send({success: true})
+        return res.send({ success: true })
     } catch (error) {
-        return res.send({success: false, ...error})
+        return res.send({ success: false, ...error })
     }
 })
 
 //  Login required
-router.get('/get_vehicle_categories',  async (req, res) => {
+router.get('/get_vehicle_categories', async (req, res) => {
     try {
-        
-       const allVehicletypes = await VehicletypesModel.find({})
+
+        const allVehicletypes = await VehicletypesModel.find({})
         return res.send(allVehicletypes)
     } catch (error) {
-        return res.send({success: false, ...error})
+        return res.send({ success: false, ...error })
     }
 })
 
-router.post('/add_vehicle_sub_categroy',  async (req, res) => {
+router.post('/add_vehicle_sub_categroy', async (req, res) => {
     try {
         const checkVehicle = VehicletypesModel.findById(req.body.vehicleTypeId)
-        if(checkVehicle){
+        if (checkVehicle) {
             await SubVehicleTypeModel.create({
                 name: req.body.name,
                 vehicleTypeId: req.body.vehicleTypeId
             })
-            
-            return res.send({success: true})
-        }else {
-            return res.status(404).send({success: false, error: "Not a valid vehicle id!"})
+
+            return res.send({ success: true })
+        } else {
+            return res.status(404).send({ success: false, error: "Not a valid vehicle id!" })
         }
     } catch (error) {
-        return res.send({success: false, ...error})
+        return res.send({ success: false, ...error })
     }
 })
 
 
-router.get('/get_vehicle_sub_categroy_by_id',  async (req, res) => {
+router.get('/get_vehicle_sub_categroy_by_id', async (req, res) => {
     try {
         const vehicleTypeId = req.body.vehicleTypeId
         const checkVehicle = VehicletypesModel.findById(vehicleTypeId)
-        if(checkVehicle && vehicleTypeId){
+        if (checkVehicle && vehicleTypeId) {
             const subCategories = await SubVehicleTypeModel.find({
                 vehicleTypeId: vehicleTypeId
             })
-            
+
             return res.send(subCategories)
-        }else {
-            return res.status(404).send({success: false, error: "Not a valid vehicle id!"})
+        } else {
+            return res.status(404).send({ success: false, error: "Not a valid vehicle id!" })
         }
     } catch (error) {
-        return res.send({success: false, ...error})
+        return res.send({ success: false, ...error })
     }
 })
+
+// Search Api //
+router.get('/search/:searchString', async (req, res) => {
+    // Constructing case-insensitive regex pattern
+    const regexPattern = new RegExp(req.params.searchString, 'i');
+
+    // Fetching vehicles
+    const vehicleList = await VehicleModel.find({ 
+        "$or": [
+            {"name": {$regex: regexPattern}},
+            {"vehicleCategory": {$regex: regexPattern}},
+            {"fuelType": {$regex: regexPattern}},
+            {"transmission": {$regex: regexPattern}},
+        ]
+     });
+     return res.send(vehicleList)
+})
+
 module.exports = router
