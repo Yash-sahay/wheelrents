@@ -6,7 +6,11 @@ const BookingSchema = new Schema({
         type: String,
         required: true
     },
-    userId:{
+    clientId:{
+        type: String,
+        required: true
+    },
+    hostId:{
         type: String,
         required: true
     },

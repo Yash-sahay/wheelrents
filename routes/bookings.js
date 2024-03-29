@@ -6,6 +6,8 @@ const fetchuser = require('../middleware/fetchuser');
 let path = require('path');
 const multer = require('multer');
 const BookingsModel = require('../models/BookingsModel');
+const VehicleModel = require('../models/VehicleModel');
+const VehicleFilesModel = require('../models/VehicleFilesModel');
 // const storage = multer.diskStorage({
 //     destination: function (req, file, cb) {
 //         cb(null, './public/vehicle')
@@ -27,7 +29,10 @@ router.post('/add', fetchuser, async (req, res) => {
         const endDate = req.body.endDate;
 
         if (vehicleId && userId) {
-            const createBooking = await BookingsModel.create({ vehicleId, userId, totalPrice, endDate, startDate })
+            let hostIdgetting = await VehicleModel.find({ _id : vehicleId })
+            hostIdgetting = hostIdgetting?.[0]?.userId
+
+            const createBooking = await BookingsModel.create({ vehicleId, clientId: userId, hostId: hostIdgetting, totalPrice, endDate, startDate })
             return res.send({ success: true, ...createBooking, startDate })
         }
 
@@ -56,6 +61,38 @@ router.post('/add', fetchuser, async (req, res) => {
 //         return res.send({ success: false, ...error })
 //     }
 // })
+
+router.post('/get_host_bookings', fetchuser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        console.warn(userId)
+        const getAllBooking = await BookingsModel.find({ hostId: userId });
+        
+        let array = [];
+        for (let index = 0; index < getAllBooking.length; index++) {
+            const currObj = getAllBooking[index]?._doc;
+
+            if (currObj && currObj.vehicleId) {
+                const getLinkedVehicle = await VehicleModel.find({userId: currObj.hostId, _id: currObj.vehicleId});
+                const vehicle_image = await VehicleFilesModel.find({vehicleId: currObj.vehicleId});
+                if (getLinkedVehicle) {
+                    const veh  = getLinkedVehicle?.[0]?._doc
+                    delete veh._id
+                    array.push({ ...currObj, ...veh, images: vehicle_image });
+                } else {
+                    console.error(`Vehicle not found for booking ID: ${currObj._id}`);
+                }
+            } else {
+                console.error(`Invalid vehicleId for booking ID: ${currObj._id}`);
+            }
+        }
+
+        res.send(array);
+    } catch (error) {
+        console.error('Error fetching host bookings:', error);
+        res.status(500).send({ success: false, error: 'Internal Server Error' });
+    }
+});
 
 
 module.exports = router
