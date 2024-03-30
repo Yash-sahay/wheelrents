@@ -27,6 +27,8 @@ function isAnyVehicleAvailable(bookings, startDate, endDate) {
         console.log(`Checking booking: ${booking.startDate} to ${booking.endDate}`);
         console.log(`Requested period: ${startDate} to ${endDate}`);
 
+        if(booking.bookingStatus == "pending" || booking.bookingStatus == "completed" ) return true;
+
         if (
             (startDate >= booking.startDate && startDate <= booking.endDate) ||
             (endDate >= booking.startDate && endDate <= booking.endDate)
