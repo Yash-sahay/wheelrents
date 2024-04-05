@@ -67,21 +67,29 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
     try {
         const userId = req.user.id;
         const bookingStatus = req.body.bookingStatus || 'pending'
-        console.warn(userId)
-        const getAllBooking = await BookingsModel.find({ hostId: userId, bookingStatus});
+        let getAllBooking = [];
+        if(req.body?.isClient){
+            getAllBooking = await BookingsModel.find({ clientId: userId, bookingStatus});
+            console.log(getAllBooking)
+        }else {
+            getAllBooking = await BookingsModel.find({ hostId: userId, bookingStatus});
+        }
         
         let array = [];
         for (let index = 0; index < getAllBooking.length; index++) {
             const currObj = getAllBooking[index]?._doc;
+            console.log(currObj.hostId)
 
             if (currObj && currObj.vehicleId) {
                 const getLinkedVehicle = await VehicleModel.find({userId: currObj.hostId, _id: currObj.vehicleId});
+
                 const clientDetails = await UserModel.find({_id: currObj.clientId});
+                const hostDetails = await UserModel.find({_id: userId});
                 const vehicle_image = await VehicleFilesModel.find({vehicleId: currObj.vehicleId});
                 if (getLinkedVehicle) {
                     const veh  = getLinkedVehicle?.[0]?._doc
                     delete veh._id
-                    array.push({ ...currObj, ...veh, clientName: clientDetails?.[0]?._doc?.name, images: vehicle_image });
+                    array.push({ ...currObj, ...veh, hostName: hostDetails?.[0]?._doc?.name, clientName: clientDetails?.[0]?._doc?.name, images: vehicle_image });
                 } else {
                     console.error(`Vehicle not found for booking ID: ${currObj._id}`);
                 }

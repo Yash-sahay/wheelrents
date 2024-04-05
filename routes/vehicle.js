@@ -224,8 +224,16 @@ router.get('/wishlist', fetchuser, async (req, res) => {
 
         // Find all wishlist items for the specified user
         const wishlistItems = await WishListModel.find({ userId });
+        let items = []
+        for (let index = 0; index < wishlistItems.length; index++) {
+            const element = wishlistItems[index];
+            const files = await VehicleFilesModel.find({ vehicleId: element.vehicleId });
+            const vehicleDetails = await VehicleModel.find({ _id: element.vehicleId });
+            items.push({...element._doc, ...vehicleDetails?.[0]?._doc, files})
+            
+        }
 
-        res.status(200).json(wishlistItems);
+        res.status(200).json(items);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
