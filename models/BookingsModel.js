@@ -18,6 +18,11 @@ const BookingSchema = new Schema({
         type: String,
         required: true
     },
+    payment: {
+        type: String,
+        default: "none",
+        enum: ['pending', 'done'],
+    },
     startDate: {
         type: Date,
         required: true

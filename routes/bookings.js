@@ -121,9 +121,9 @@ router.delete('/delete_booking_by_id/:booking_id', fetchuser, async (req, res) =
 
 router.post('/booking_status_change', fetchuser, async (req, res) => {
     try {
-        const bookingStatus = req.body.bookingStatus
+        const bodyData = req.body
         const bookingId = req.body.bookingId
-        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, {bookingStatus})
+        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, {...bodyData})
         console.warn(bookingId)
         res.status(200).send({ success: true, message: "booking status has been changed succesfully!"  });
     } catch (error) {
