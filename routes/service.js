@@ -6,6 +6,9 @@ const VehicletypesModel = require('../models/VehicletypesModel');
 const SubVehicleTypeModel = require('../models/SubVehicleTypeModel');
 const multer = require('multer');
 const VehicleModel = require('../models/VehicleModel');
+const VehicleFilesModel = require('../models/VehicleFilesModel');
+const BookingsModel = require('../models/BookingsModel');
+const WishListModel = require('../models/WishListModel');
 
 
 const storage = multer.diskStorage({
@@ -82,21 +85,85 @@ router.get('/get_vehicle_sub_categroy_by_id', async (req, res) => {
     }
 })
 
-// Search Api //
-router.get('/search/:searchString', async (req, res) => {
-    // Constructing case-insensitive regex pattern
-    const regexPattern = new RegExp(req.params.searchString, 'i');
 
-    // Fetching vehicles
-    const vehicleList = await VehicleModel.find({ 
-        "$or": [
-            {"name": {$regex: regexPattern}},
-            {"vehicleCategory": {$regex: regexPattern}},
-            {"fuelType": {$regex: regexPattern}},
-            {"transmission": {$regex: regexPattern}},
-        ]
-     });
-     return res.send(vehicleList)
+
+
+
+function isAnyVehicleAvailable(bookings, startDate, endDate) {
+    for (const booking of bookings) {
+        console.log(`Checking booking: ${booking.startDate} to ${booking.endDate}`);
+        console.log(`Requested period: ${startDate} to ${endDate}`);
+
+        if(booking.bookingStatus == "pending" || booking.bookingStatus == "completed" ) return true;
+
+        if (
+            (startDate >= booking.startDate && startDate <= booking.endDate) ||
+            (endDate >= booking.startDate && endDate <= booking.endDate)
+        ) {
+            console.warn('Overlapping booking found');
+            return false; // Overlapping booking found
+        }
+        console.log('No overlapping bookings in this iteration');
+    }
+    return true; // No overlapping bookings found
+}
+
+
+// Search Api //
+router.post('/search/:searchString', async (req, res) => {
+    try {
+        // Constructing case-insensitive regex pattern
+        const regexPattern = new RegExp(req.params.searchString, 'i');
+
+        // Parsing input date parameters
+        const startDate = new Date(req.body.startDate);
+        const endDate = new Date(req.body.endDate);
+
+        // Extracting filter headers from the request body
+        const filterHeaders = req.body;
+        delete filterHeaders.startDate;
+        delete filterHeaders.endDate;
+
+        console.warn(req.params.searchString)
+
+        // Fetching vehicles based on filter headers
+        const vehicleList = await VehicleModel.find({
+            "$or": [
+                { "name": { $regex: regexPattern } },
+                { "vehicleCategory": { $regex: regexPattern } },
+                { "fuelType": { $regex: regexPattern } },
+                { "transmission": { $regex: regexPattern } },
+            ],
+            ...filterHeaders
+        });
+
+        // Iteration for adding images and bookings for each vehicle
+        let vehicleListWithImg = [];
+        for (let index = 0; index < vehicleList.length; index++) {
+            const element = vehicleList[index];
+            const files = await VehicleFilesModel.find({ vehicleId: element._doc._id });
+            const vehicleBookings = await BookingsModel.find({ vehicleId: element._doc._id });
+            const vehicleWish = await WishListModel.find({ vehicleId: element._doc._id });
+            vehicleListWithImg.push({ ...element._doc, files: files, bookings: vehicleBookings, isWishList: vehicleWish.length > 0 ? true : false });
+        }
+
+        // Sort vehicles based on the number of bookings (from most booked to least booked)
+        vehicleListWithImg.sort((a, b) => b.bookings.length - a.bookings.length);
+
+        // Filter vehicles based on availability for the specified date range
+        let listingWithDateFilter = [];
+        vehicleListWithImg.forEach(item => {
+            listingWithDateFilter.push({
+                ...item,
+                available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
+            });
+        });
+
+        return res.send(listingWithDateFilter);
+
+    } catch (error) {
+        return res.send({ success: false, ...error });
+    }
 })
 
 module.exports = router
