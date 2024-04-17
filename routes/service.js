@@ -153,10 +153,12 @@ router.post('/search/:searchString', async (req, res) => {
         // Filter vehicles based on availability for the specified date range
         let listingWithDateFilter = [];
         vehicleListWithImg.forEach(item => {
-            listingWithDateFilter.push({
-                ...item,
-                available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
-            });
+            if(isAnyVehicleAvailable(item?.bookings, startDate, endDate)){
+                listingWithDateFilter.push({
+                    ...item,
+                    available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
+                });
+            }
         });
 
         return res.send(listingWithDateFilter);

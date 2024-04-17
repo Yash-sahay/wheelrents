@@ -48,13 +48,15 @@ router.post('/createuser', [
       name: req.body.name,
       password: secPass,
       email: req.body.email,
-      userType: req.body.userType
+      userType: req.body.userType,
+      phoneNo: req.body.phoneNo
     });
     const data = {
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
+        phoneNo: user.phoneNo,
         userType: user.userType,
       }
     }

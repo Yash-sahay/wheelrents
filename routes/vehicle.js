@@ -106,10 +106,12 @@ router.post('/get', async (req, res) => {
         // Filter vehicles based on availability for the specified date range
         let listingWithDateFilter = [];
         vehicleListWithImg.forEach(item => {
-            listingWithDateFilter.push({
-                ...item,
-                available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
-            });
+            if(isAnyVehicleAvailable(item?.bookings, startDate, endDate)){
+                listingWithDateFilter.push({
+                    ...item,
+                    available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
+                });
+            }
         });
 
         return res.send(listingWithDateFilter);
@@ -146,21 +148,29 @@ router.post('/add', upload.array('files', 6), fetchuser, async (req, res) => {
 });
 
 // API endpoint to update a vehicle by the host and vehicle ID
-router.put('/update', fetchuser, async (req, res) => {
+router.post('/update', upload.none(), fetchuser, async (req, res) => {
     try {
         // Extracting data from the request body
         const data = req.body;
         // Creating a payload for updating the vehicle
         const payload = { ...data };
+        delete payload._id;
+        console.log(data._id)
         // Updating the vehicle based on the vehicle ID
-        await VehicleModel.findByIdAndUpdate({ _id: data.id }, payload);
+        const updatedVehicle = await VehicleModel.findByIdAndUpdate(data._id, payload);
+        if (!updatedVehicle) {
+            // If no vehicle found with the given ID
+            return res.status(200).json({ success: false, error: 'Vehicle not found' });
+        }
         // Returning success response with updated payload
-        return res.send({ success: true, ...payload });
+        return res.json({ success: true, vehicle: updatedVehicle });
     } catch (error) {
         // Returning error response
-        return res.send({ success: false, ...error });
+        console.error("Error updating vehicle:", error);
+        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
+
 
 // API endpoint to delete a vehicle by ID
 router.delete('/delete/:vehicleId', fetchuser, async (req, res) => {
