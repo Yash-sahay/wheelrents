@@ -31,7 +31,7 @@ router.post('/add', fetchuser, async (req, res) => {
         const endDate = req.body.endDate;
 
         if (vehicleId && userId) {
-            let hostIdgetting = await VehicleModel.find({ _id : vehicleId })
+            let hostIdgetting = await VehicleModel.find({ _id: vehicleId })
             hostIdgetting = hostIdgetting?.[0]?.userId
 
             const createBooking = await BookingsModel.create({ vehicleId, clientId: userId, hostId: hostIdgetting, totalPrice, endDate, startDate, bookingStatus: "pending", payment: "none" })
@@ -69,24 +69,24 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
         const userId = req.user.id;
         const bookingStatus = req.body.bookingStatus || 'pending'
         let getAllBooking = [];
-        if(req.body?.isClient){
-            getAllBooking = await BookingsModel.find({ clientId: userId, bookingStatus});
-        }else {
-            getAllBooking = await BookingsModel.find({ hostId: userId, bookingStatus});
+        if (req.body?.isClient) {
+            getAllBooking = await BookingsModel.find({ clientId: userId, bookingStatus });
+        } else {
+            getAllBooking = await BookingsModel.find({ hostId: userId, bookingStatus });
         }
-        
+
         let array = [];
         for (let index = 0; index < getAllBooking.length; index++) {
             const currObj = getAllBooking[index]?._doc;
 
             if (currObj && currObj.vehicleId) {
-                const getLinkedVehicle = await VehicleModel.find({userId: currObj.hostId, _id: currObj.vehicleId});
+                const getLinkedVehicle = await VehicleModel.find({ userId: currObj.hostId, _id: currObj.vehicleId });
 
-                const clientDetails = await UserModel.find({_id: currObj.clientId});
-                const hostDetails = await UserModel.find({_id: currObj.hostId});
-                const vehicle_image = await VehicleFilesModel.find({vehicleId: currObj.vehicleId});
+                const clientDetails = await UserModel.find({ _id: currObj.clientId });
+                const hostDetails = await UserModel.find({ _id: currObj.hostId });
+                const vehicle_image = await VehicleFilesModel.find({ vehicleId: currObj.vehicleId });
                 if (getLinkedVehicle) {
-                    const veh  = getLinkedVehicle?.[0]?._doc
+                    const veh = getLinkedVehicle?.[0]?._doc
                     delete veh._id
                     array = [{ ...currObj, ...veh, hostName: hostDetails?.[0]?._doc?.name, hostNumber: hostDetails?.[0]?._doc?.phoneNo, clientName: clientDetails?.[0]?._doc?.name, clientNumber: clientDetails?.[0]?._doc?.phoneNo, images: vehicle_image }, ...array];
                 } else {
@@ -108,7 +108,7 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
 router.delete('/delete_booking_by_id/:booking_id', fetchuser, async (req, res) => {
     try {
         const bookingId = req.params.booking_id
-        await BookingsModel.deleteOne({_id: bookingId})
+        await BookingsModel.deleteOne({ _id: bookingId })
         console.warn(bookingId)
         res.status(200).send({ success: true, message: "booking deleted succesfully!" });
     } catch (error) {
@@ -122,9 +122,9 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
     try {
         const bodyData = req.body
         const bookingId = req.body.bookingId
-        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, {...bodyData})
+        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { ...bodyData })
         console.warn(bookingId)
-        res.status(200).send({ success: true, message: "booking status has been changed succesfully!"  });
+        res.status(200).send({ success: true, message: "booking status has been changed succesfully!" });
     } catch (error) {
         console.error('Error changing status for booking:', error);
         res.status(500).send({ success: false, error: 'Internal Server Error' });
@@ -134,9 +134,9 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
 router.post('/booking_payment', fetchuser, async (req, res) => {
     try {
         const bookingId = req.body.bookingId
-        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, {bookingStatus: "active", payment: "done" })
-        const bookingTrxn = await BookingTransactionsModel.create({clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice})
-        res.status(200).send({ success: true, message: "booking payment is done succesfully!"  });
+        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "active", payment: "done" })
+        const bookingTrxn = await BookingTransactionsModel.create({ clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice })
+        res.status(200).send({ success: true, message: "booking payment is done succesfully!" });
     } catch (error) {
         console.error('Error create payment for booking:', error);
         res.status(500).send({ success: false, error: 'Internal Server Error' });
@@ -145,7 +145,7 @@ router.post('/booking_payment', fetchuser, async (req, res) => {
 
 
 // Assuming this function is an Express route handler
-router.post('/get_transaction_details', fetchuser, async(req, res) => {
+router.post('/get_transaction_details', fetchuser, async (req, res) => {
     try {
         const hostId = req.user.id; // Assuming hostId is passed in the request params
         // const hostId = req.body.hostId; // Assuming hostId is passed in the request params
@@ -179,6 +179,26 @@ router.post('/get_transaction_details', fetchuser, async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+router.post('/extend_trip', async (req, res) => {
+    try {
+        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { extendedHours:  req.body?.extendedHours})
+        res.json({status: true, ...responceData._doc})
+    } catch (error) {
+        console.error("Error extended trip:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})
+
+router.post('/finish_trip', async (req, res) => {
+    try {
+        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { bookingStatus: 'completed', finalExtendedHours: req.body?.finalExtendedHours, extendedPrice: req.body?.extendedPrice, nonInformedExtendedPrice: req.body?.nonInformedExtendedPrice})
+        res.json({status: true, ...responceData._doc})
+    } catch (error) {
+        console.error("Error extended trip:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})
 
 
 

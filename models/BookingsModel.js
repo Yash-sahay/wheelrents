@@ -31,6 +31,22 @@ const BookingSchema = new Schema({
         type: Date,
         required: true
     },
+    extendedHours: {
+        type: String,
+        required: false
+    },
+    finalExtendedHours: {
+        type: String,
+        required: false
+    },
+    extendedPrice: {
+        type: String,
+        required: false
+    },
+    nonInformedExtendedPrice: {
+        type: String,
+        required: false
+    },
     bookingStatus: {
         type: String,
         required: true,
