@@ -27,7 +27,7 @@ function isAnyVehicleAvailable(bookings, startDate, endDate) {
         console.log(`Checking booking: ${booking.startDate} to ${booking.endDate}`);
         console.log(`Requested period: ${startDate} to ${endDate}`);
 
-        if(booking.bookingStatus == "pending" || booking.bookingStatus == "completed" ) return true;
+        if(booking.bookingStatus == "pending" || booking.bookingStatus == "completed" || booking.bookingStatus == "reject" ) return true;
 
         if (
             (startDate >= booking.startDate && startDate <= booking.endDate) ||
@@ -228,22 +228,47 @@ router.post('/wishlist', fetchuser, async (req, res) => {
 
 
 // API endpoint to get all wishlist items for a specific user
-router.get('/wishlist', fetchuser, async (req, res) => {
+router.post('/wishlist_get', fetchuser, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Find all wishlist items for the specified user
-        const wishlistItems = await WishListModel.find({ userId });
-        let items = []
-        for (let index = 0; index < wishlistItems.length; index++) {
-            const element = wishlistItems[index];
-            const files = await VehicleFilesModel.find({ vehicleId: element.vehicleId });
-            const vehicleDetails = await VehicleModel.find({ _id: element.vehicleId });
-            items.push({...element._doc, ...vehicleDetails?.[0]?._doc, files})
-            
+         // Parsing input date parameters
+        const startDate = new Date(req.body.startDate);
+        const endDate = new Date(req.body.endDate);
+
+        // Extracting filter headers from the request body
+        const filterHeaders = req.body;
+        delete filterHeaders.startDate;
+        delete filterHeaders.endDate;
+
+        // Fetching vehicles based on filter headers
+        const vehicleList = await VehicleModel.find({ ...filterHeaders });
+
+        // Iteration for adding images and bookings for each vehicle
+        let vehicleListWithImg = [];
+        for (let index = 0; index < vehicleList.length; index++) {
+            const element = vehicleList[index];
+            const files = await VehicleFilesModel.find({ vehicleId: element._doc._id });
+            const vehicleBookings = await BookingsModel.find({ vehicleId: element._doc._id });
+            const vehicleWish = await WishListModel.find({ vehicleId: element._doc._id });
+            if(vehicleWish.length > 0){
+                vehicleListWithImg.push({ ...element._doc, files: files, bookings: vehicleBookings, isWishList: vehicleWish.length > 0 ? true : false });
+            }
         }
 
-        res.status(200).json(items);
+        // Sort vehicles based on the number of bookings (from most booked to least booked)
+        vehicleListWithImg.sort((a, b) => b.bookings.length - a.bookings.length);
+
+        // Filter vehicles based on availability for the specified date range
+        let listingWithDateFilter = [];
+        vehicleListWithImg.forEach(item => {
+                listingWithDateFilter.push({
+                    ...item,
+                    available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
+                });
+        });
+
+        return res.send(listingWithDateFilter);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });

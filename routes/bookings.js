@@ -108,7 +108,7 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
 router.delete('/delete_booking_by_id/:booking_id', fetchuser, async (req, res) => {
     try {
         const bookingId = req.params.booking_id
-        await BookingsModel.deleteOne({ _id: bookingId })
+        await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "reject" })
         console.warn(bookingId)
         res.status(200).send({ success: true, message: "booking deleted succesfully!" });
     } catch (error) {

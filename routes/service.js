@@ -9,6 +9,7 @@ const VehicleModel = require('../models/VehicleModel');
 const VehicleFilesModel = require('../models/VehicleFilesModel');
 const BookingsModel = require('../models/BookingsModel');
 const WishListModel = require('../models/WishListModel');
+const BannerModel = require('../models/BannerModel');
 
 
 const storage = multer.diskStorage({
@@ -167,5 +168,30 @@ router.post('/search/:searchString', async (req, res) => {
         return res.send({ success: false, ...error });
     }
 })
+
+
+//  Banner Add Model
+router.post('/add_banner_image', upload.single('image'), async (req, res) => {
+    try {
+        await BannerModel.create({
+            data: req.body.data,
+            image: req.file.filename
+        })
+        return res.send({ success: true })
+    } catch (error) {
+        return res.send({ success: false, ...error })
+    }
+})
+
+//  Banner Add Model
+router.get('/get_banner_images', async (req, res) => {
+    try {
+        const allBanners = await BannerModel.find({})
+        return res.send({ success: true, allBanners })
+    } catch (error) {
+        return res.send({ success: false, ...error })
+    }
+})
+
 
 module.exports = router
