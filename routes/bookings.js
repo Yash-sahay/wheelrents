@@ -122,6 +122,8 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
     try {
         const bodyData = req.body
         const bookingId = req.body.bookingId
+
+        console.warn(bodyData)
         const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { ...bodyData })
         console.warn(bookingId)
         res.status(200).send({ success: true, message: "booking status has been changed succesfully!" });
@@ -134,7 +136,7 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
 router.post('/booking_payment', fetchuser, async (req, res) => {
     try {
         const bookingId = req.body.bookingId
-        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "active", payment: "done" })
+        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "started"})
         const bookingTrxn = await BookingTransactionsModel.create({ clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice })
         res.status(200).send({ success: true, message: "booking payment is done succesfully!" });
     } catch (error) {
