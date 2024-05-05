@@ -18,6 +18,17 @@ const BookingTransactions = new Schema({
         type: String,
         required: true
     },
+    withDrawStatus: {
+        type: String,
+        required: true,
+        enum: ['new', 'pending', 'completed'],
+        default: "new"
+    },
+    vpaId: {
+        type: String,
+        required: false,
+        default: ""
+    },
     date:{
         type: Date,
         default: Date.now

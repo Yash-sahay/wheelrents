@@ -15,6 +15,10 @@ const VehicleSchema = new Schema({
         type: String,
         required: true,
     },
+    vehicleType: {
+        type: String,
+        required: true,
+    },
     transmission: {
         type: String,
         required: true,

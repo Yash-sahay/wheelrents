@@ -10,6 +10,7 @@ const VehicleFilesModel = require('../models/VehicleFilesModel');
 const BookingsModel = require('../models/BookingsModel');
 const WishListModel = require('../models/WishListModel');
 const BannerModel = require('../models/BannerModel');
+const BookingTransactionsModel = require('../models/BookingTransactions');
 
 
 const storage = multer.diskStorage({
@@ -68,13 +69,13 @@ router.post('/add_vehicle_sub_categroy', async (req, res) => {
 })
 
 
-router.get('/get_vehicle_sub_categroy_by_id', async (req, res) => {
+router.get('/get_vehicle_sub_categroy_by_id/:vehicleCategoryId', async (req, res) => {
     try {
-        const vehicleTypeId = req.body.vehicleTypeId
-        const checkVehicle = VehicletypesModel.findById(vehicleTypeId)
-        if (checkVehicle && vehicleTypeId) {
+        const vehicleCategoryId = req.params.vehicleCategoryId
+        const checkVehicle = VehicletypesModel.findById(vehicleCategoryId)
+        if (checkVehicle && vehicleCategoryId) {
             const subCategories = await SubVehicleTypeModel.find({
-                vehicleTypeId: vehicleTypeId
+                vehicleTypeId: vehicleCategoryId
             })
 
             return res.send(subCategories)
@@ -95,7 +96,7 @@ function isAnyVehicleAvailable(bookings, startDate, endDate) {
         console.log(`Checking booking: ${booking.startDate} to ${booking.endDate}`);
         console.log(`Requested period: ${startDate} to ${endDate}`);
 
-        if(booking.bookingStatus == "pending" || booking.bookingStatus == "completed" ) return true;
+        if (booking.bookingStatus == "pending" || booking.bookingStatus == "completed") return true;
 
         if (
             (startDate >= booking.startDate && startDate <= booking.endDate) ||
@@ -125,7 +126,6 @@ router.post('/search/:searchString', async (req, res) => {
         delete filterHeaders.startDate;
         delete filterHeaders.endDate;
 
-        console.warn(req.params.searchString)
 
         // Fetching vehicles based on filter headers
         const vehicleList = await VehicleModel.find({
@@ -134,6 +134,7 @@ router.post('/search/:searchString', async (req, res) => {
                 { "vehicleCategory": { $regex: regexPattern } },
                 { "fuelType": { $regex: regexPattern } },
                 { "transmission": { $regex: regexPattern } },
+                { "vehicleType": { $regex: regexPattern } },
             ],
             ...filterHeaders
         });
@@ -154,7 +155,7 @@ router.post('/search/:searchString', async (req, res) => {
         // Filter vehicles based on availability for the specified date range
         let listingWithDateFilter = [];
         vehicleListWithImg.forEach(item => {
-            if(isAnyVehicleAvailable(item?.bookings, startDate, endDate)){
+            if (isAnyVehicleAvailable(item?.bookings, startDate, endDate)) {
                 listingWithDateFilter.push({
                     ...item,
                     available: isAnyVehicleAvailable(item?.bookings, startDate, endDate)
@@ -188,6 +189,54 @@ router.get('/get_banner_images', async (req, res) => {
     try {
         const allBanners = await BannerModel.find({})
         return res.send({ success: true, allBanners })
+    } catch (error) {
+        return res.send({ success: false, ...error })
+    }
+})
+
+//  Payment transaction 
+router.get('/get_booking_transaction_by_user', fetchuser, async (req, res) => {
+    try {
+        const user = req.user
+        const transactions = await BookingTransactionsModel.find({ hostId: user?.id })
+
+        let tranxWithBooking = []
+
+        for (let index = 0; index < transactions.length; index++) {
+            const element = transactions[index];
+            const assosiatedBookings = await BookingsModel.find({ _id: element?._doc?.bookingId })
+            let obj = {
+                ...element?._doc,
+                withdrawableAmt: parseInt(assosiatedBookings?.[0]?.totalPrice) + parseInt(assosiatedBookings?.[0]?.extendedPrice || "0") + parseInt(assosiatedBookings?.[0]?.nonInformedExtendedPrice || "0"),
+                assosiatedBooking: assosiatedBookings?.[0],
+            }
+            if (assosiatedBookings?.[0].bookingStatus == "completed" || assosiatedBookings?.[0].bookingStatus == "started" ) {
+                if(element?.withDrawStatus == "new"){
+                    tranxWithBooking = [obj, ...tranxWithBooking]
+                }
+            }
+        }
+
+
+        return res.send({ success: true, transactions: tranxWithBooking })
+    } catch (error) {
+        return res.send({ success: false, ...error })
+    }
+})
+
+// Update Payment transaction status
+router.post('/update_host_payment_status', async (req, res) => {
+    try {
+
+        const userSelectedTransactions = req.body.transactions
+        const withDrawStatus = req.body.withDrawStatus
+        const vpaId = req.body.vpaId
+
+        userSelectedTransactions.forEach(async (ele) => {
+            await BookingTransactionsModel.findByIdAndUpdate( ele?._id, { withDrawStatus: withDrawStatus, vpaId: vpaId})
+        })
+
+        return res.send({ success: true })
     } catch (error) {
         return res.send({ success: false, ...error })
     }

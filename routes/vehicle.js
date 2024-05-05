@@ -9,6 +9,7 @@ const multer = require('multer');
 const VehicleFilesModel = require('../models/VehicleFilesModel');
 const BookingsModel = require('../models/BookingsModel');
 const WishListModel = require('../models/WishListModel');
+const VehicletypesModel = require('../models/VehicletypesModel');
 
 // Multer storage configuration
 const storage = multer.diskStorage({
@@ -57,7 +58,8 @@ router.post('/getbyuser', fetchuser, async (req, res) => {
             const element = vehicleList[index];
             const files = await VehicleFilesModel.find({ vehicleId: element._doc._id });
             const vehicleBookings = await BookingsModel.find({ vehicleId: element._doc._id });
-            vehicleListWithImg.push({ ...element._doc, files: files, bookings: vehicleBookings });
+            const vehicleType = await VehicletypesModel.find({ name: element._doc.vehicleCategory });
+            vehicleListWithImg.push({ ...element._doc, vehicleCatId: vehicleType?.[0]._id, files: files, bookings: vehicleBookings });
         }
 
         // Filter vehicles based on availability for the specified date range
@@ -69,7 +71,7 @@ router.post('/getbyuser', fetchuser, async (req, res) => {
             });
         });
 
-        return res.send(listingWithDateFilter);
+        return res.send(listingWithDateFilter.reverse());
     } catch (error) {
         return res.send({ success: false, ...error });
     }

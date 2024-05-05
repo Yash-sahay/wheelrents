@@ -137,7 +137,7 @@ router.post('/booking_payment', fetchuser, async (req, res) => {
     try {
         const bookingId = req.body.bookingId
         const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "started"})
-        const bookingTrxn = await BookingTransactionsModel.create({ clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice })
+        const bookingTrxn = await BookingTransactionsModel.create({ withDrawStatus: 'new', clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice })
         res.status(200).send({ success: true, message: "booking payment is done succesfully!" });
     } catch (error) {
         console.error('Error create payment for booking:', error);
@@ -167,13 +167,23 @@ router.post('/get_transaction_details', fetchuser, async (req, res) => {
 
         // Calculate total earning for the specified host
         let totalEarning = 0;
-        overallEarnings.forEach(earning => {
-            totalEarning += parseFloat(earning.amount);
-        });
+        let allTransaction = []
+        for (let index = 0; index < overallEarnings.length; index++) {
+            const earning = overallEarnings[index]._doc;
+            const bookinRef = await BookingsModel.find({_id: earning?.bookingId});
+            
+            const amount = parseFloat(earning?.amount) + parseFloat(bookinRef?.[0]?._doc?.extendedPrice || "0") + parseFloat(bookinRef?.[0]?._doc?.nonInformedExtendedPrice || "0")
+
+            if(bookinRef?.[0]?._doc.bookingStatus != "reject"){
+                allTransaction = [ {...earning, ...bookinRef?.[0]?._doc, amount }, ...allTransaction ]
+                totalEarning += amount;
+            }
+            
+        }
 
         res.json({
-            todaysEarning: todayEarnings.reduce((acc, curr) => acc + parseFloat(curr.amount), 0),
-            overallEarning: overallEarnings.map(earning => parseFloat(earning.amount)),
+            todaysEarning: todayEarnings?.reduce((acc, curr) => acc + parseFloat(curr.amount), 0),
+            overallEarning: allTransaction,
             totalEarning: totalEarning
         });
     } catch (error) {
