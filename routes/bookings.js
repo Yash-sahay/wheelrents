@@ -70,9 +70,9 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
         const bookingStatus = req.body.bookingStatus || 'pending'
         let getAllBooking = [];
         if (req.body?.isClient) {
-            getAllBooking = await BookingsModel.find({ clientId: userId, bookingStatus });
+            getAllBooking = await BookingsModel.find({ clientId: userId,  $or: bookingStatus == "completed" ? [{bookingStatus: bookingStatus}] : [ { bookingStatus: "pending" }, { bookingStatus: "active"}, { bookingStatus: "started"} ]  });
         } else {
-            getAllBooking = await BookingsModel.find({ hostId: userId, bookingStatus });
+            getAllBooking = await BookingsModel.find({ hostId: userId,  $or: bookingStatus == "completed" ? [{bookingStatus: bookingStatus}] : [ { bookingStatus: "pending" }, { bookingStatus: "active"}, { bookingStatus: "started"} ] });
         }
 
         let array = [];
