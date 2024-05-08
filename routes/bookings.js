@@ -14,7 +14,7 @@ const { sendNotify } = require('../controller/fcmController');
 const FCMModel = require('../models/FCMModel');
 // const storage = multer.diskStorage({
 //     destination: function (req, file, cb) {
-//         cb(null, './public/vehicle')
+//         cb(null, './public/vehicle') 
 //     },
 //     filename: function (req, file, cb) {
 //         cb(null,  Date.now() + "-wheelrents-" + Math.random() + file.originalname);
