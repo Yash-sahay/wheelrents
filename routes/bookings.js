@@ -10,6 +10,8 @@ const VehicleModel = require('../models/VehicleModel');
 const UserModel = require('../models/UserModel');
 const VehicleFilesModel = require('../models/VehicleFilesModel');
 const BookingTransactionsModel = require('../models/BookingTransactions');
+const { sendNotify } = require('../controller/fcmController');
+const FCMModel = require('../models/FCMModel');
 // const storage = multer.diskStorage({
 //     destination: function (req, file, cb) {
 //         cb(null, './public/vehicle')
@@ -32,9 +34,17 @@ router.post('/add', fetchuser, async (req, res) => {
 
         if (vehicleId && userId) {
             let hostIdgetting = await VehicleModel.find({ _id: vehicleId })
+            const vehicleDetails = hostIdgetting?.[0];
             hostIdgetting = hostIdgetting?.[0]?.userId
 
+
             const createBooking = await BookingsModel.create({ vehicleId, clientId: userId, hostId: hostIdgetting, totalPrice, endDate, startDate, bookingStatus: "pending", payment: "none" })
+
+            const allFcms = await FCMModel.find({ userId: createBooking.hostId })
+
+            allFcms.forEach(element => {
+                sendNotify({ title: `New Booking for ${vehicleDetails?.name}`, body: "Please proceed to approve the request that has been submitted by the client.", token: element.fcm_token })
+            });
             return res.send({ success: true, ...createBooking, startDate })
         }
 
@@ -44,25 +54,6 @@ router.post('/add', fetchuser, async (req, res) => {
     }
 })
 
-// For get all booking Vehicle by vehicleId
-// router.post('/add', fetchuser, async (req, res) => {
-//     try {
-//         const vehicleId = req.body.vehicleId;
-//         const userId = req.user.id;
-//         const totalPrice = req.body.totalPrice;
-//         const startDate = new Date(req.body.startDate);
-//         const endtDate = new Date(req.body.endtDate);
-
-//         if(vehicleId && userId){
-//             const createBooking = await BookingsModel.create({ vehicleId, userId, totalPrice, endtDate, startDate })
-//             return res.send({success: true, ...createBooking, startDate})
-//         }
-
-//         return res.send({ success: false, error: "please provide vehicle id" })
-//     } catch (error) {
-//         return res.send({ success: false, ...error })
-//     }
-// })
 
 router.post('/get_host_bookings', fetchuser, async (req, res) => {
     try {
@@ -70,9 +61,9 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
         const bookingStatus = req.body.bookingStatus || 'pending'
         let getAllBooking = [];
         if (req.body?.isClient) {
-            getAllBooking = await BookingsModel.find({ clientId: userId,  $or: bookingStatus == "completed" ? [{bookingStatus: bookingStatus}] : [ { bookingStatus: "pending" }, { bookingStatus: "active"}, { bookingStatus: "started"} ]  });
+            getAllBooking = await BookingsModel.find({ clientId: userId, $or: bookingStatus == "completed" ? [{ bookingStatus: bookingStatus }] : [{ bookingStatus: "pending" }, { bookingStatus: "active" }, { bookingStatus: "started" }] });
         } else {
-            getAllBooking = await BookingsModel.find({ hostId: userId,  $or: bookingStatus == "completed" ? [{bookingStatus: bookingStatus}] : [ { bookingStatus: "pending" }, { bookingStatus: "active"}, { bookingStatus: "started"} ] });
+            getAllBooking = await BookingsModel.find({ hostId: userId, $or: bookingStatus == "completed" ? [{ bookingStatus: bookingStatus }] : [{ bookingStatus: "pending" }, { bookingStatus: "active" }, { bookingStatus: "started" }] });
         }
 
         let array = [];
@@ -108,8 +99,13 @@ router.post('/get_host_bookings', fetchuser, async (req, res) => {
 router.delete('/delete_booking_by_id/:booking_id', fetchuser, async (req, res) => {
     try {
         const bookingId = req.params.booking_id
-        await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "reject" })
-        console.warn(bookingId)
+        const bookingData = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "reject" })
+        const allFcms = await FCMModel.find({ userId: bookingData.clientId })
+
+        allFcms.forEach(element => {
+            sendNotify({ title: "Your Booking has been rejected!", body: "The vehicle owner has rejected your booking. Please try to book another vehicle", token: element.fcm_token })
+        });
+
         res.status(200).send({ success: true, message: "booking deleted succesfully!" });
     } catch (error) {
         console.error('Error deleting host booking:', error);
@@ -136,8 +132,18 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
 router.post('/booking_payment', fetchuser, async (req, res) => {
     try {
         const bookingId = req.body.bookingId
-        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "started"})
+        const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { bookingStatus: "started" })
         const bookingTrxn = await BookingTransactionsModel.create({ withDrawStatus: 'new', clientId: dataByStatus.clientId, bookingId: bookingId, hostId: dataByStatus.hostId, amount: dataByStatus.totalPrice })
+
+        let hostIdgetting = await VehicleModel.find({ _id: dataByStatus.vehicleId })
+        const vehicleDetails = hostIdgetting?.[0];
+
+        const allFcms = await FCMModel.find({ userId: dataByStatus.hostId })
+
+        allFcms.forEach(element => {
+            sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `An amount of ${dataByStatus?.totalPrice} has been received.`, token: element?.fcm_token })
+        });
+
         res.status(200).send({ success: true, message: "booking payment is done succesfully!" });
     } catch (error) {
         console.error('Error create payment for booking:', error);
@@ -170,15 +176,15 @@ router.post('/get_transaction_details', fetchuser, async (req, res) => {
         let allTransaction = []
         for (let index = 0; index < overallEarnings.length; index++) {
             const earning = overallEarnings[index]._doc;
-            const bookinRef = await BookingsModel.find({_id: earning?.bookingId});
-            
+            const bookinRef = await BookingsModel.find({ _id: earning?.bookingId });
+
             const amount = parseFloat(earning?.amount) + parseFloat(bookinRef?.[0]?._doc?.extendedPrice || "0") + parseFloat(bookinRef?.[0]?._doc?.nonInformedExtendedPrice || "0")
 
-            if(bookinRef?.[0]?._doc.bookingStatus != "reject"){
-                allTransaction = [ {...earning, ...bookinRef?.[0]?._doc, amount }, ...allTransaction ]
+            if (bookinRef?.[0]?._doc.bookingStatus != "reject") {
+                allTransaction = [{ ...earning, ...bookinRef?.[0]?._doc, amount }, ...allTransaction]
                 totalEarning += amount;
             }
-            
+
         }
 
         res.json({
@@ -194,8 +200,19 @@ router.post('/get_transaction_details', fetchuser, async (req, res) => {
 
 router.post('/extend_trip', async (req, res) => {
     try {
-        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { extendedHours:  req.body?.extendedHours})
-        res.json({status: true, ...responceData._doc})
+        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { extendedHours: req.body?.extendedHours })
+
+
+        let hostIdgetting = await VehicleModel.find({ _id: responceData.vehicleId })
+        const vehicleDetails = hostIdgetting?.[0];
+
+        const allFcms = await FCMModel.find({ userId: responceData.hostId })
+
+        allFcms.forEach(element => {
+            sendNotify({ title: `Trip has been extended!`, body: `The duration of the ${vehicleDetails.name} trip has been extended by an additional ${req.body?.extendedHours} hours.`, token: element.fcm_token })
+        });
+
+        res.json({ status: true, ...responceData._doc })
     } catch (error) {
         console.error("Error extended trip:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -204,8 +221,19 @@ router.post('/extend_trip', async (req, res) => {
 
 router.post('/finish_trip', async (req, res) => {
     try {
-        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { bookingStatus: 'completed', finalExtendedHours: req.body?.finalExtendedHours, extendedPrice: req.body?.extendedPrice, nonInformedExtendedPrice: req.body?.nonInformedExtendedPrice})
-        res.json({status: true, ...responceData._doc})
+        const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { bookingStatus: 'completed', finalExtendedHours: req.body?.finalExtendedHours, extendedPrice: req.body?.extendedPrice, nonInformedExtendedPrice: req.body?.nonInformedExtendedPrice })
+        
+        let hostIdgetting = await VehicleModel.find({ _id: responceData.vehicleId })
+        const vehicleDetails = hostIdgetting?.[0];
+
+        const allFcms = await FCMModel.find({ userId: responceData.hostId })
+
+        allFcms.forEach(element => {
+            sendNotify({ title: `Trip ended!`, body: `The ${vehicleDetails.name} trip has been successfully concluded.`, token: element.fcm_token })
+        });
+
+        
+        res.json({ status: true, ...responceData._doc })
     } catch (error) {
         console.error("Error extended trip:", error);
         res.status(500).json({ error: "Internal server error" });

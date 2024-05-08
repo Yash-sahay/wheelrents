@@ -9,6 +9,7 @@ var fetchuser = require('../middleware/fetchuser');
 const JWT_SECRET = 'xproject$unicon';
 
 const multer = require('multer');
+const FCMModel = require('../models/FCMModel');
 const upload = multer({ dest: 'images/user' })
 
 // ROUTE 1: Create a User using: POST "/api/auth/createuser". No login required
@@ -77,6 +78,7 @@ router.post('/createuser', [
 router.post('/login', [
   body('email', 'Enter a valid email').isEmail(),
   body('password', 'Password cannot be blank').exists(),
+  body('fcm_token', 'fcm token cannot be blank').exists(),
 ], async (req, res) => {
   let success = false;
   // If there are errors, return Bad request and the errors
@@ -85,7 +87,7 @@ router.post('/login', [
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password } = req.body;
+  const { email, password, fcm_token } = req.body;
   try {
     let user = await UserModel.findOne({ email });
     if (!user) {
@@ -97,6 +99,11 @@ router.post('/login', [
     if (!passwordCompare) {
       success = false
       return res.status(400).json({ success, error: "Please try to login with correct credentials" });
+    }
+
+    let aleadyfcmCheck = await FCMModel.findOne({ fcm_token, userId: user?.id });
+    if(!aleadyfcmCheck){
+      const Fcm_save = await FCMModel.create({userId: user.id, fcm_token})
     }
 
     const authtoken = jwt.sign({user: {id: user.id}}, JWT_SECRET);
