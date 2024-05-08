@@ -71,25 +71,6 @@ app.use('/api/bookings', require('./routes/bookings'))
 startCronJob('0 * * * *', 'my first cron job')
 
 
-// const payload = {
-//   notification: {
-//     body: 'This is an FCM notification that displays an image!',
-//     title: 'FCM Notification',
-//   }
-// };
-// const sendNotify = () => {
-//   firebase.messaging().send({
-//     ...payload,
-//     token: "fqMlkYwMT5uyF_7cLqW7lg:APA91bEZVfDPmRDUIxo7dmOuTm0-IHHF5GuzWW60Tq5roT0rwB1Yu91-tnCDQaEdDGFPEtnpFfc0nJiLnua9w2lD1ST_r01MdzUAEuiHXLH-HKWGvJ7V5xw6uvA5edyTljt1ecYx51No",
-//   })
-// }
-
-// setTimeout(() => {
-//   sendNotify()
-// }, 1000);
-
-
-
 app.listen(port, () => {
     console.log(`project-x backend listening at http://${'hostname'}:${port}`)
   })
