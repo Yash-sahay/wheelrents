@@ -31,7 +31,7 @@ const sendNotify = ({body, token, title}) => {
 
     const payload = {
         notification: {
-            body: body,
+            body: body || "N/a",
             title: title,
         }
     };

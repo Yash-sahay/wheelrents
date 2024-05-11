@@ -11,6 +11,7 @@ const BookingsModel = require('../models/BookingsModel');
 const WishListModel = require('../models/WishListModel');
 const BannerModel = require('../models/BannerModel');
 const BookingTransactionsModel = require('../models/BookingTransactions');
+const { sendNotify } = require('../controller/fcmController');
 
 
 const storage = multer.diskStorage({
@@ -241,6 +242,23 @@ router.post('/update_host_payment_status', async (req, res) => {
         return res.send({ success: false, ...error })
     }
 })
+
+
+// Send notification by admin
+router.post('/send_notification', async (req, res) => {
+    try {
+        const {title, message, token} = req.body;
+
+        sendNotify({title, body: message, token})
+
+        return res.send({ success: true })
+    } catch (error) {
+        console.warn(error)
+        return res.send({ success: false, ...error })
+    }
+})
+
+
 
 
 module.exports = router

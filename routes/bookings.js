@@ -121,7 +121,26 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
 
         console.warn(bodyData)
         const dataByStatus = await BookingsModel.findByIdAndUpdate(bookingId, { ...bodyData })
-        console.warn(bookingId)
+
+
+
+        let hostIdgetting = await VehicleModel.find({ _id: dataByStatus.vehicleId })
+        const vehicleDetails = hostIdgetting?.[0];
+
+        if (bodyData?.payment == "pending") {
+            const clientAllFcms = await FCMModel.find({ userId: dataByStatus.clientId })
+            clientAllFcms?.forEach(element => {
+                sendNotify({ title: `Vehicle request accepted!`, body: `The vehicle owner has accepted your request for ${vehicleDetails?.name}.`, token: element?.fcm_token })
+            });
+        } else {
+            const hostAllFcms = await FCMModel.find({ userId: dataByStatus.hostId })
+            hostAllFcms?.forEach(element => {
+                sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `You will receive the amount of ${dataByStatus?.totalPrice} once the trip has begun.`, token: element?.fcm_token })
+            });
+        }
+
+
+
         res.status(200).send({ success: true, message: "booking status has been changed succesfully!" });
     } catch (error) {
         console.error('Error changing status for booking:', error);
@@ -141,7 +160,7 @@ router.post('/booking_payment', fetchuser, async (req, res) => {
         const allFcms = await FCMModel.find({ userId: dataByStatus.hostId })
 
         allFcms.forEach(element => {
-            sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `An amount of ${dataByStatus?.totalPrice} has been received.`, token: element?.fcm_token })
+            sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `An amount of ${dataByStatus?.totalPrice} has been received to your wallet.`, token: element?.fcm_token })
         });
 
         res.status(200).send({ success: true, message: "booking payment is done succesfully!" });
@@ -222,7 +241,7 @@ router.post('/extend_trip', async (req, res) => {
 router.post('/finish_trip', async (req, res) => {
     try {
         const responceData = await BookingsModel.findByIdAndUpdate(req.body?.bookingId, { bookingStatus: 'completed', finalExtendedHours: req.body?.finalExtendedHours, extendedPrice: req.body?.extendedPrice, nonInformedExtendedPrice: req.body?.nonInformedExtendedPrice })
-        
+
         let hostIdgetting = await VehicleModel.find({ _id: responceData.vehicleId })
         const vehicleDetails = hostIdgetting?.[0];
 
@@ -232,7 +251,7 @@ router.post('/finish_trip', async (req, res) => {
             sendNotify({ title: `Trip ended!`, body: `The ${vehicleDetails.name} trip has been successfully concluded.`, token: element.fcm_token })
         });
 
-        
+
         res.json({ status: true, ...responceData._doc })
     } catch (error) {
         console.error("Error extended trip:", error);
