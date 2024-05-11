@@ -130,12 +130,12 @@ router.post('/booking_status_change', fetchuser, async (req, res) => {
         if (bodyData?.payment == "pending") {
             const clientAllFcms = await FCMModel.find({ userId: dataByStatus.clientId })
             clientAllFcms?.forEach(element => {
-                sendNotify({ title: `Vehicle request accepted!`, body: `The vehicle owner has accepted your request for ₹${vehicleDetails?.name}.`, token: element?.fcm_token })
+                sendNotify({ title: `Vehicle request accepted!`, body: `The vehicle owner has accepted your request for ${vehicleDetails?.name}.`, token: element?.fcm_token })
             });
         } else {
             const hostAllFcms = await FCMModel.find({ userId: dataByStatus.hostId })
             hostAllFcms?.forEach(element => {
-                sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `You will receive the amount of ${dataByStatus?.totalPrice} once the trip has begun.`, token: element?.fcm_token })
+                sendNotify({ title: `Payment recieved for ${vehicleDetails?.name}!`, body: `You will receive the amount of ₹${dataByStatus?.totalPrice} once the trip has begun.`, token: element?.fcm_token })
             });
         }
 
