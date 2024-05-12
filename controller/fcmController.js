@@ -27,18 +27,19 @@ firebase.initializeApp({
 });
 
 
-const sendNotify = ({body, token, title}) => {
+const sendNotify = ({body, token, title, data}) => {
 
     const payload = {
         notification: {
             body: body || "N/a",
-            title: title,
+            title: title, 
         }
     };
 
     firebase.messaging().send({
         ...payload,
         token: token,
+        data: data || {}
     })
 }
 

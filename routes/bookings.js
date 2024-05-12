@@ -199,7 +199,7 @@ router.post('/get_transaction_details', fetchuser, async (req, res) => {
 
             const amount = parseFloat(earning?.amount) + parseFloat(bookinRef?.[0]?._doc?.extendedPrice || "0") + parseFloat(bookinRef?.[0]?._doc?.nonInformedExtendedPrice || "0")
 
-            if (bookinRef?.[0]?._doc.bookingStatus != "reject") {
+            if (bookinRef?.[0]?._doc.bookingStatus != "reject" && earning.withDrawStatus !== 'new') {
                 allTransaction = [{ ...earning, ...bookinRef?.[0]?._doc, amount }, ...allTransaction]
                 totalEarning += amount;
             }
